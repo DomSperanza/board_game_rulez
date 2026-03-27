@@ -5,7 +5,49 @@ Purpose:
 - Convert them into vector embeddings using a local open-source model via sentence-transformers.
 - Save these embeddings into a local ChromaDB collection for long-term storage and quick searching.
 """
+import os
+import chromadb
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 
+# Path to local chroma DB
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "chroma_db")
 
-def create_embeddings_and_store(chunks: list):
-    pass
+def create_embeddings_and_store(chunks: list[str], game_name: str):
+    """Embeds textual chunks and stores them in ChromaDB."""
+    if not chunks:
+        print("No chunks provided to embed.")
+        return
+        
+    client = chromadb.PersistentClient(path=DB_PATH, settings=Settings(anonymized_telemetry=False))
+    
+    # Use standard all-MiniLM-L6-v2
+    sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+    
+    collection = client.get_or_create_collection(
+        name="board_game_rules",
+        embedding_function=sentence_transformer_ef
+    )
+
+    try:
+        collection.delete(where={"game_name": game_name})
+    except Exception:
+        pass
+
+    ids = []
+    documents = []
+    metadatas = []
+    
+    for i, chunk in enumerate(chunks):
+        chunk_id = f"{game_name}_chunk_{i}"
+        ids.append(chunk_id)
+        documents.append(chunk)
+        metadatas.append({"game_name": game_name})
+        
+    print(f"Adding {len(chunks)} chunks to ChromaDB for game '{game_name}'...")
+    collection.add(
+        documents=documents,
+        metadatas=metadatas,
+        ids=ids
+    )
+    print("Successfully added to ChromaDB!")

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Board Game Rulebot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='board.css') }}">
+</head>
+<body>
+  <div class="page">
+  <div class="wrap">
+    <header class="hero">
+      <h1>Board Game Rulebot</h1>
+      <p>Upload a rulebook, then roll the dice with your rules questions.</p>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="flash {{ category }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="grid">
+      <section class="panel" aria-labelledby="add-rules">
+        <h2 id="add-rules"><span class="icon" aria-hidden="true">+</span> Add a game</h2>
+        <p class="library-hint">PDFs are fingerprinted; duplicate games or the same file are rejected.</p>
+        <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+          <label for="upload-game">Game name</label>
+          <input id="upload-game" type="text" name="game_name" required autocomplete="off" placeholder="e.g. Ticket to Ride">
+
+          <label for="pdf">Rulebook (PDF)</label>
+          <div class="file-row">
+            <input id="pdf" type="file" name="pdf" accept=".pdf,application/pdf" required>
+          </div>
+
+          <button class="btn btn-primary" type="submit">Index rulebook</button>
+        </form>
+      </section>
+
+      <section class="panel chat-panel" aria-labelledby="ask-rules">
+        <h2 id="ask-rules"><span class="icon" aria-hidden="true">?</span> Ask the rules</h2>
+
+        {% if games %}
+        <div class="pills" id="library-pills" aria-label="Games in your library — click to select">
+          {% for g in games %}
+          <button type="button" class="pill" data-game-name="{{ g.display_name }}" aria-pressed="false" title="Play with {{ g.display_name|e }}">
+            {% if g.thumbnail %}
+            <img class="pill-cover" src="{{ url_for('game_thumb', filename=g.thumbnail) }}" alt="" width="32" height="32" loading="lazy" decoding="async">
+            {% else %}
+            <span class="pill-fallback" aria-hidden="true">{{ ((g.display_name or '?')[0])|upper }}</span>
+            {% endif %}
+            <span class="pill-label">{{ g.display_name }}</span>
+          </button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="library-hint">Your library is empty. Add a PDF in the section below to begin.</p>
+        {% endif %}
+
+        {% if games %}
+        <form id="ask-form" action="{{ url_for('ask') }}" method="post">
+          <div class="toolbar toolbar-with-cover">
+            <div class="game-cover-slot" aria-hidden="true">
+              <img id="game-cover-preview" class="game-cover-preview" alt="" width="48" height="48" decoding="async">
+              <span id="game-cover-fallback" class="game-cover-fallback"></span>
+            </div>
+            <div class="grow game-picker">
+              <span class="picker-group-label" id="picker-group-label">Playing</span>
+              <input type="search" id="game-search" class="game-search" autocomplete="off" placeholder="Search or filter games…" aria-labelledby="picker-group-label" aria-describedby="game-filter-meta">
+              <p class="game-filter-meta" id="game-filter-meta" aria-live="polite"></p>
+              <select id="chat-game" name="game_name" required aria-label="Choose game (list filters with search above)">
+                {% for g in games %}
+                <option value="{{ g.display_name }}" data-thumb="{{ url_for('game_thumb', filename=g.thumbnail) if g.thumbnail else '' }}">{{ g.display_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="chat-shell" aria-label="Conversation">
+            {% if messages %}
+            <div class="chat-log" id="chat-log">
+              {% for m in messages %}
+              <div class="bubble {{ 'user' if m.role == 'user' else 'bot' }}">
+                <div class="bubble-header">
+                  {% if m.role == 'user' %}
+                  <span class="avatar avatar-user" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span>
+                  <span class="who">You</span>
+                  {% else %}
+                  <span class="avatar avatar-bot" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M9 13v2M15 13v2"/></svg></span>
+                  <span class="who">Rulebot</span>
+                  {% endif %}
+                </div>
+                <div class="bubble-body">{{ m.content }}</div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-chat">Ask anything that is answered in the official PDF you indexed.</div>
+            {% endif %}
+          </div>
+
+          <label for="prompt">Your question</label>
+          <textarea id="prompt" name="prompt" placeholder="How many cards do I keep?"></textarea>
+
+          <div class="row-actions">
+            <button class="btn btn-primary" id="ask-submit" type="submit">Get answer</button>
+          </div>
+        </form>
+        <form action="{{ url_for('clear_chat') }}" method="post" style="margin-top:0.75rem">
+          <button class="btn btn-ghost" type="submit">Clear chat</button>
+        </form>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+  </div>
+
+  <div id="thinking-overlay" class="thinking-overlay" hidden aria-labelledby="thinking-title">
+    <div class="thinking-card" role="status">
+      <div class="thinking-dice" aria-hidden="true">&#9860;</div>
+      <p id="thinking-title" class="thinking-heading">Rulebot is rolling through the rulebook…</p>
+      <p class="thinking-sub">Shuffling vectors and bothering Gemini. May take a few seconds.</p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var form = document.getElementById("ask-form");
+      var overlay = document.getElementById("thinking-overlay");
+      if (form && overlay) {
+        form.addEventListener("submit", function () {
+          var ta = document.getElementById("prompt");
+          if (ta && ta.value.trim()) {
+            overlay.hidden = false;
+            document.getElementById("ask-submit").disabled = true;
+          }
+        });
+      }
+      var log = document.getElementById("chat-log");
+      if (log) {
+        log.scrollTop = log.scrollHeight;
+      }
+      var rebuildGameSelect = function () {};
+      function updatePillActiveState() {
+        var sel = document.getElementById("chat-game");
+        var wrap = document.getElementById("library-pills");
+        if (!sel || !wrap) return;
+        var v = sel.value;
+        wrap.querySelectorAll(".pill").forEach(function (btn) {
+          var on = btn.getAttribute("data-game-name") === v;
+          btn.classList.toggle("pill--active", on);
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      }
+      function syncGameCover() {
+        var sel = document.getElementById("chat-game");
+        var img = document.getElementById("game-cover-preview");
+        var fb = document.getElementById("game-cover-fallback");
+        if (!sel || !img || !fb) {
+          updatePillActiveState();
+          return;
+        }
+        var opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) {
+          img.removeAttribute("src");
+          img.classList.remove("is-visible");
+          fb.textContent = "?";
+          fb.classList.add("is-visible");
+          updatePillActiveState();
+          return;
+        }
+        var url = opt.getAttribute("data-thumb") || "";
+        if (url) {
+          img.src = url;
+          img.classList.add("is-visible");
+          fb.classList.remove("is-visible");
+        } else {
+          img.removeAttribute("src");
+          img.classList.remove("is-visible");
+          var t = opt.text ? opt.text.trim() : "?";
+          fb.textContent = t ? t.charAt(0).toUpperCase() : "?";
+          fb.classList.add("is-visible");
+        }
+        updatePillActiveState();
+      }
+      var allGameOpts = [];
+      function initGameSearchFilter() {
+        var sel = document.getElementById("chat-game");
+        var search = document.getElementById("game-search");
+        var meta = document.getElementById("game-filter-meta");
+        if (!sel || !search || !allGameOpts.length) return;
+        function setMeta(shown, total) {
+          if (!meta) return;
+          if (total <= 1) {
+            meta.textContent = "";
+            return;
+          }
+          if (shown === total) {
+            meta.textContent = total + " games in library";
+          } else if (shown === 0) {
+            meta.textContent = "No match—try another search";
+          } else {
+            meta.textContent = "Showing " + shown + " of " + total;
+          }
+        }
+        function rebuild() {
+          var prev = sel.value;
+          var q = (search.value || "").trim().toLowerCase();
+          var matches = !q
+            ? allGameOpts.slice()
+            : allGameOpts.filter(function (o) {
+                return o.text.toLowerCase().indexOf(q) !== -1;
+              });
+          sel.innerHTML = "";
+          if (matches.length === 0) {
+            var dead = document.createElement("option");
+            dead.value = "";
+            dead.textContent = "No matches—clear search";
+            sel.appendChild(dead);
+            setMeta(0, allGameOpts.length);
+            syncGameCover();
+            return;
+          }
+          matches.forEach(function (g) {
+            var o = document.createElement("option");
+            o.value = g.value;
+            o.textContent = g.text;
+            o.setAttribute("data-thumb", g.thumb);
+            sel.appendChild(o);
+          });
+          var still = matches.some(function (m) {
+            return m.value === prev;
+          });
+          sel.value = still ? prev : matches[0].value;
+          setMeta(matches.length, allGameOpts.length);
+          syncGameCover();
+        }
+        search.addEventListener("input", rebuild);
+        rebuildGameSelect = rebuild;
+        rebuild();
+      }
+      function pickGameFromPill(name) {
+        var search = document.getElementById("game-search");
+        var sel = document.getElementById("chat-game");
+        if (!sel || !name) return;
+        if (search) search.value = "";
+        rebuildGameSelect();
+        sel.value = name;
+        syncGameCover();
+      }
+      var cg = document.getElementById("chat-game");
+      if (cg) {
+        allGameOpts = Array.from(cg.options).map(function (o) {
+          return {
+            value: o.value,
+            text: o.textContent,
+            thumb: o.getAttribute("data-thumb") || "",
+          };
+        });
+        cg.addEventListener("change", syncGameCover);
+        initGameSearchFilter();
+        var pillWrap = document.getElementById("library-pills");
+        if (pillWrap) {
+          pillWrap.addEventListener("click", function (e) {
+            var btn = e.target.closest(".pill");
+            if (!btn) return;
+            var name = btn.getAttribute("data-game-name");
+            if (name) pickGameFromPill(name);
+          });
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

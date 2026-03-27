@@ -7,5 +7,17 @@ venv/
 # ChromaDB
 data/chroma_db/
 
+# Ingested-game registry (local library)
+data/ingestion_registry.json
+
+# Cover thumbnails (first PDF page)
+data/game_thumbnails/
+
 # Raw PDFs
 data/raw_pdfs/
+
+# cached files for the app
+data/cached_files/
+
+# .pyc files
+__pycache__/
