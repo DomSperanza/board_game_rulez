@@ -1,0 +1,17 @@
+# PDF Processing
+pymupdf==1.25.3  # Fast PDF text extraction
+
+# Vector Database & Embeddings
+chromadb==0.5.21  # Local vector database (stores embeddings free/locally)
+sentence-transformers==3.3.1  # Runs open-source embedding models locally
+
+# AI Integration
+google-generativeai==0.8.3  # Gemini API for the free tier generative completion
+
+# Configuration & Utilities
+python-dotenv==1.0.1  # For loading GEMINI_API_KEY securely
+
+# UI / Web (Optional: For later when we build the interface)
+streamlit==1.40.1  # Rapid UI development for chatbots
+# fastapi==0.115.5
+# uvicorn==0.32.1
