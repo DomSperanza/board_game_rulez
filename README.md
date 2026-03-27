@@ -149,7 +149,7 @@ Requires **`GEMINI_API_KEY`** (e.g. in `.env` at the project root).
 
 | Entry | Command | Role |
 |--------|---------|------|
-| **Flask** | `python src/flask_app.py` | Primary UI: responsive layout (mobile-first tweaks), PDF upload with dedupe, **search box + dropdown** to pick a game, **clickable library pills** (same selection as the dropdown), cover previews, scrollable chat panel, “thinking” overlay while Gemini runs. Session-backed chat. |
+| **Flask** | `python src/flask_app.py` | Primary UI: responsive layout (mobile-first tweaks), PDF upload with dedupe, **search box + dropdown** to pick a game, **clickable library pills** (same selection as the dropdown), cover previews, scrollable chat panel, **inline “thinking” message in the chat** while Gemini runs. Session-backed chat. |
 | **Streamlit** | `streamlit run src/app.py` | Simpler chat UI; same RAG backend; game list from the registry (and Chroma sync). |
 
 Both call `search_rulebook` then `get_answer`.

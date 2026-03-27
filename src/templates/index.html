@@ -120,24 +120,43 @@
   </div>
   </div>
 
-  <div id="thinking-overlay" class="thinking-overlay" hidden aria-labelledby="thinking-title">
-    <div class="thinking-card" role="status">
-      <div class="thinking-dice" aria-hidden="true">&#9860;</div>
-      <p id="thinking-title" class="thinking-heading">Rulebot is rolling through the rulebook…</p>
-      <p class="thinking-sub">Shuffling vectors and bothering Gemini. May take a few seconds.</p>
-    </div>
-  </div>
-
   <script>
     (function () {
+      var SVG_USER = '<span class="avatar avatar-user" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span>';
+      var SVG_BOT = '<span class="avatar avatar-bot" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M9 13v2M15 13v2"/></svg></span>';
+      function injectPendingChat(userText) {
+        var shell = document.querySelector(".chat-shell");
+        if (!shell) return;
+        var empty = shell.querySelector(".empty-chat");
+        var log = document.getElementById("chat-log");
+        if (empty) empty.setAttribute("hidden", "");
+        if (!log) {
+          log = document.createElement("div");
+          log.className = "chat-log";
+          log.id = "chat-log";
+          shell.insertBefore(log, empty || null);
+        }
+        var u = document.createElement("div");
+        u.className = "bubble user";
+        u.innerHTML = '<div class="bubble-header">' + SVG_USER + '<span class="who">You</span></div><div class="bubble-body"></div>';
+        u.querySelector(".bubble-body").textContent = userText;
+        log.appendChild(u);
+        var b = document.createElement("div");
+        b.className = "bubble bot thinking-inline";
+        b.setAttribute("role", "status");
+        b.setAttribute("aria-live", "polite");
+        b.innerHTML = '<div class="bubble-header">' + SVG_BOT + '<span class="who">Rulebot</span></div><div class="bubble-body"><span class="thinking-pulse">Searching the rulebook and drafting an answer…</span></div>';
+        log.appendChild(b);
+        log.scrollTop = log.scrollHeight;
+      }
       var form = document.getElementById("ask-form");
-      var overlay = document.getElementById("thinking-overlay");
-      if (form && overlay) {
+      if (form) {
         form.addEventListener("submit", function () {
           var ta = document.getElementById("prompt");
           if (ta && ta.value.trim()) {
-            overlay.hidden = false;
-            document.getElementById("ask-submit").disabled = true;
+            injectPendingChat(ta.value.trim());
+            var btn = document.getElementById("ask-submit");
+            if (btn) btn.disabled = true;
           }
         });
       }

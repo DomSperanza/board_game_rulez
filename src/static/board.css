@@ -237,11 +237,6 @@ body::before {
     min-height: 44px;
   }
 
-  .thinking-overlay {
-    padding: max(1rem, var(--safe-top)) max(1rem, var(--safe-right)) max(1rem, var(--safe-bottom))
-      max(1rem, var(--safe-left));
-    padding-top: max(1.5rem, var(--safe-top));
-  }
 }
 
 @media (min-width: 720px) {
@@ -678,69 +673,22 @@ textarea {
   pointer-events: none;
 }
 
-.thinking-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: rgba(12, 8, 20, 0.78);
-  backdrop-filter: blur(8px);
+.bubble.thinking-inline {
+  border-style: dashed;
+  border-color: rgba(120, 220, 180, 0.42);
+  opacity: 0.95;
 }
 
-.thinking-overlay[hidden] {
-  display: none !important;
+.thinking-pulse {
+  animation: thinking-pulse 1.15s ease-in-out infinite;
 }
 
-.thinking-card {
-  text-align: center;
-  max-width: 22rem;
-  padding: 1.75rem 1.5rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--card-border);
-  background: rgba(35, 28, 50, 0.95);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-}
-
-.thinking-dice {
-  font-size: clamp(2.25rem, 6vw, 3rem);
-  line-height: 1;
-  margin-bottom: 1rem;
-  animation: dice-shake 1.1s ease-in-out infinite;
-}
-
-@keyframes dice-shake {
+@keyframes thinking-pulse {
   0%,
   100% {
-    transform: rotate(0deg) translateY(0);
+    opacity: 0.55;
   }
-  20% {
-    transform: rotate(-14deg) translateY(-3px);
+  50% {
+    opacity: 1;
   }
-  40% {
-    transform: rotate(10deg) translateY(2px);
-  }
-  60% {
-    transform: rotate(-8deg) translateY(-2px);
-  }
-  80% {
-    transform: rotate(6deg) translateY(0);
-  }
-}
-
-.thinking-heading {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 1.15rem;
-  margin: 0 0 0.4rem;
-  color: #ffe8c8;
-}
-
-.thinking-sub {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--muted);
-  line-height: 1.45;
 }
