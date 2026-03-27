@@ -29,7 +29,7 @@
       <section class="panel" aria-labelledby="add-rules">
         <h2 id="add-rules"><span class="icon" aria-hidden="true">+</span> Add a game</h2>
         <p class="library-hint">PDFs are fingerprinted; duplicate games or the same file are rejected.</p>
-        <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+        <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
           <label for="upload-game">Game name</label>
           <input id="upload-game" type="text" name="game_name" required autocomplete="off" placeholder="e.g. Ticket to Ride">
 
@@ -38,7 +38,14 @@
             <input id="pdf" type="file" name="pdf" accept=".pdf,application/pdf" required>
           </div>
 
-          <button class="btn btn-primary" type="submit">Index rulebook</button>
+          <button class="btn btn-primary" type="submit" id="upload-submit">
+            <span class="upload-spinner" aria-hidden="true"></span>
+            <span class="btn-label">Index rulebook</span>
+          </button>
+          <p class="upload-status" id="upload-status" hidden aria-live="polite">
+            <span class="upload-spinner upload-spinner--inline" aria-hidden="true"></span>
+            <span>Indexing PDF—extracting text and embeddings. First run may download the embedding model.</span>
+          </p>
         </form>
       </section>
 
@@ -148,6 +155,18 @@
         b.innerHTML = '<div class="bubble-header">' + SVG_BOT + '<span class="who">Rulebot</span></div><div class="bubble-body"><span class="thinking-pulse">Searching the rulebook and drafting an answer…</span></div>';
         log.appendChild(b);
         log.scrollTop = log.scrollHeight;
+      }
+      var uploadForm = document.getElementById("upload-form");
+      if (uploadForm) {
+        uploadForm.addEventListener("submit", function () {
+          var btn = document.getElementById("upload-submit");
+          var st = document.getElementById("upload-status");
+          if (btn) {
+            btn.disabled = true;
+            btn.classList.add("is-loading");
+          }
+          if (st) st.removeAttribute("hidden");
+        });
       }
       var form = document.getElementById("ask-form");
       if (form) {

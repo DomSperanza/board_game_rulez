@@ -673,6 +673,57 @@ textarea {
   pointer-events: none;
 }
 
+.btn-primary .upload-spinner {
+  display: none;
+  width: 1.05em;
+  height: 1.05em;
+  border: 2px solid rgba(26, 15, 8, 0.22);
+  border-top-color: #1a0f08;
+  border-radius: 50%;
+  animation: upload-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+.btn-primary.is-loading .upload-spinner {
+  display: block;
+}
+
+.btn-primary.is-loading {
+  gap: 0.5rem;
+}
+
+@keyframes upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.upload-status {
+  margin: 0.65rem 0 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.upload-status[hidden] {
+  display: none !important;
+}
+
+.upload-spinner--inline {
+  display: block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-top: 0.15em;
+  border: 2px solid rgba(255, 230, 200, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: upload-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
 .bubble.thinking-inline {
   border-style: dashed;
   border-color: rgba(120, 220, 180, 0.42);
