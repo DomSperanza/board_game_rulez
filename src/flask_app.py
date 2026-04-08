@@ -35,7 +35,7 @@ load_dotenv(_SRC.parent / ".env")
 load_dotenv()
 
 from generation.gemini_client import get_answer
-from ingestion.pipeline import ingest_uploaded_pdf
+from ingestion.pipeline import delete_game_completely, ingest_uploaded_pdf
 from ingestion.registry import list_library_games, sync_from_chroma_if_registry_empty
 from retrieval.search import search_rulebook
 
@@ -53,6 +53,14 @@ _THUMB_DIR = _ROOT / "data" / "game_thumbnails"
 
 def _upload_password_required() -> bool:
     return bool(os.environ.get("INDEX_PASSWORD"))
+
+
+def _index_password_ok() -> bool:
+    expected = os.environ.get("INDEX_PASSWORD")
+    if expected is None or expected == "":
+        return True
+    got = request.form.get("index_password") or ""
+    return hmac.compare_digest(got.encode(), expected.encode())
 
 
 def _games() -> list[dict]:
@@ -98,12 +106,9 @@ def game_thumb(filename: str):
 
 @app.post("/upload")
 def upload():
-    expected = os.environ.get("INDEX_PASSWORD")
-    if expected is not None and expected != "":
-        got = request.form.get("index_password") or ""
-        if not hmac.compare_digest(got.encode(), expected.encode()):
-            flash("Wrong index password.", "error")
-            return redirect(url_for("index"))
+    if not _index_password_ok():
+        flash("Wrong index password.", "error")
+        return redirect(url_for("index"))
     game = request.form.get("game_name", "")
     file = request.files.get("pdf")
     ok, msg = ingest_uploaded_pdf(file, game)
@@ -113,6 +118,22 @@ def upload():
         display = " ".join(game.strip().split())
         if display in names:
             session["playing_game"] = display
+            session.modified = True
+    return redirect(url_for("index"))
+
+
+@app.post("/remove-game")
+def remove_game():
+    if not _index_password_ok():
+        flash("Wrong index password.", "error")
+        return redirect(url_for("index"))
+    game = request.form.get("game_name", "")
+    ok, msg = delete_game_completely(game)
+    flash(msg, "success" if ok else "error")
+    if ok:
+        display = " ".join(game.strip().split())
+        if session.get("playing_game") == display:
+            session.pop("playing_game", None)
             session.modified = True
     return redirect(url_for("index"))
 

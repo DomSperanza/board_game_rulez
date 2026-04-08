@@ -51,3 +51,15 @@ def create_embeddings_and_store(chunks: list[str], game_name: str):
         ids=ids
     )
     print("Successfully added to ChromaDB!")
+
+
+def delete_embeddings_for_game(game_name: str) -> None:
+    client = chromadb.PersistentClient(path=DB_PATH, settings=Settings(anonymized_telemetry=False))
+    sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name="all-MiniLM-L6-v2"
+    )
+    collection = client.get_collection(
+        name="board_game_rules",
+        embedding_function=sentence_transformer_ef,
+    )
+    collection.delete(where={"game_name": game_name})

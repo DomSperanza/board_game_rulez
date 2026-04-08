@@ -77,6 +77,22 @@ def register(
     _save(data)
 
 
+def game_exists(display_name: str) -> bool:
+    name = " ".join(display_name.strip().split())
+    return _game_key(name) in _load()["games"]
+
+
+def pop_game(display_name: str) -> dict | None:
+    """Remove game from registry; return removed entry or None."""
+    name = " ".join(display_name.strip().split())
+    key = _game_key(name)
+    data = _load()
+    entry = data["games"].pop(key, None)
+    if entry:
+        _save(data)
+    return entry
+
+
 def list_registered_games() -> list[str]:
     data = _load()
     return sorted(m["display_name"] for m in data["games"].values())

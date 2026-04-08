@@ -52,6 +52,26 @@
             <span>Indexing PDF—extracting text and embeddings. First run may download the embedding model.</span>
           </p>
         </form>
+
+        {% if games %}
+        <div class="remove-game-block">
+          <h3 class="remove-game-heading">Remove a game</h3>
+          <p class="library-hint">Deletes vectors, registry entry, and cover image for the chosen title.</p>
+          <form action="{{ url_for('remove_game') }}" method="post" class="remove-game-form" onsubmit="return confirm('Remove this game from the library permanently?');">
+            <label for="remove-game-select">Game to remove</label>
+            <select id="remove-game-select" name="game_name" required aria-label="Game to remove">
+              {% for g in games %}
+              <option value="{{ g.display_name }}">{{ g.display_name }}</option>
+              {% endfor %}
+            </select>
+            {% if upload_requires_password %}
+            <label for="remove-index-password">Index password</label>
+            <input id="remove-index-password" type="password" name="index_password" required autocomplete="current-password">
+            {% endif %}
+            <button class="btn btn-danger" type="submit">Remove from library</button>
+          </form>
+        </div>
+        {% endif %}
       </section>
 
       <section class="panel chat-panel" aria-labelledby="ask-rules">

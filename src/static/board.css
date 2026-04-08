@@ -389,6 +389,34 @@ textarea {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(240, 113, 120, 0.55);
+  margin-top: 0.35rem;
+}
+.btn-danger:hover {
+  background: rgba(240, 113, 120, 0.12);
+  border-color: rgba(240, 113, 120, 0.75);
+}
+
+.remove-game-block {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 200, 120, 0.2);
+}
+.remove-game-heading {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+}
+.remove-game-form select {
+  width: 100%;
+  margin-bottom: 0.65rem;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

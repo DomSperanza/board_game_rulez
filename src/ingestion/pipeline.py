@@ -5,10 +5,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from ingestion.embedder import create_embeddings_and_store
+from ingestion.embedder import create_embeddings_and_store, delete_embeddings_for_game
 from ingestion.pdf_processor import chunk_text, extract_text
-from ingestion.registry import check_can_ingest, file_sha256, register
-from ingestion.thumbnail import render_first_page_thumbnail
+from ingestion.registry import check_can_ingest, file_sha256, game_exists, pop_game, register
+from ingestion.thumbnail import THUMB_DIR, render_first_page_thumbnail
 
 
 def ingest_pdf_file(pdf_path: str, game_display_name: str) -> tuple[bool, str]:
@@ -53,3 +53,25 @@ def ingest_uploaded_pdf(file_storage, game_display_name: str) -> tuple[bool, str
             os.unlink(tmp_path)
         except OSError:
             pass
+
+
+def delete_game_completely(display_name: str) -> tuple[bool, str]:
+    name = " ".join(display_name.strip().split())
+    if not name:
+        return False, "Pick a game to remove."
+    if not game_exists(name):
+        return False, f"No game named “{name}” in the library."
+    try:
+        delete_embeddings_for_game(name)
+    except Exception as e:
+        return False, f"Could not remove indexed data ({e})."
+    entry = pop_game(name)
+    if not entry:
+        return False, f"No game named “{name}” in the library."
+    tb = entry.get("thumbnail")
+    if tb:
+        try:
+            (THUMB_DIR / tb).unlink(missing_ok=True)
+        except OSError:
+            pass
+    return True, f"Removed “{name}” from your library."
