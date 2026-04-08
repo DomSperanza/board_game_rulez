@@ -1,0 +1,3 @@
+boardgamerulez.com, www.boardgamerulez.com {
+	reverse_proxy web:5000
+}

@@ -1,0 +1,10 @@
+.git
+venv
+__pycache__
+*.pyc
+.env
+data/chroma_db
+data/ingestion_registry.json
+data/game_thumbnails
+data/raw_pdfs
+data/cached_files

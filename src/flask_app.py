@@ -3,6 +3,7 @@ Flask web UI: upload rule PDFs + chat over ingested rules. Streamlit remains in 
 """
 from __future__ import annotations
 
+import hmac
 import os
 import sys
 import warnings
@@ -43,16 +44,30 @@ app = Flask(
     template_folder=str(_SRC / "templates"),
     static_folder=str(_SRC / "static"),
 )
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-change-me-in-production")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "dev-change-me-in-production"
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
 
 _THUMB_DIR = _ROOT / "data" / "game_thumbnails"
 
 
+def _upload_password_required() -> bool:
+    return bool(os.environ.get("INDEX_PASSWORD"))
+
+
 def _games() -> list[dict]:
     sync_from_chroma_if_registry_empty()
     return list_library_games()
+
+
+def _selected_display_name(games: list[dict]) -> str | None:
+    names = [g["display_name"] for g in games]
+    if not names:
+        return None
+    stored = session.get("playing_game")
+    if stored in names:
+        return stored
+    return names[0]
 
 
 @app.route("/", methods=["GET"])
@@ -64,6 +79,8 @@ def index():
         "index.html",
         games=games,
         messages=session["messages"],
+        selected_game=_selected_display_name(games),
+        upload_requires_password=_upload_password_required(),
     )
 
 
@@ -81,10 +98,22 @@ def game_thumb(filename: str):
 
 @app.post("/upload")
 def upload():
+    expected = os.environ.get("INDEX_PASSWORD")
+    if expected is not None and expected != "":
+        got = request.form.get("index_password") or ""
+        if not hmac.compare_digest(got.encode(), expected.encode()):
+            flash("Wrong index password.", "error")
+            return redirect(url_for("index"))
     game = request.form.get("game_name", "")
     file = request.files.get("pdf")
     ok, msg = ingest_uploaded_pdf(file, game)
     flash(msg, "success" if ok else "error")
+    if ok and game.strip():
+        names = [g["display_name"] for g in _games()]
+        display = " ".join(game.strip().split())
+        if display in names:
+            session["playing_game"] = display
+            session.modified = True
     return redirect(url_for("index"))
 
 
@@ -99,8 +128,10 @@ def ask():
     if game not in names:
         flash("Pick a game from your library first.", "error")
         return redirect(url_for("index"))
+    session["playing_game"] = game
     if not prompt:
         flash("Type a question to ask the rulebot.", "error")
+        session.modified = True
         return redirect(url_for("index"))
     session["messages"].append({"role": "user", "content": prompt})
     chunks = search_rulebook(prompt, game)

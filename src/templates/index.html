@@ -38,6 +38,11 @@
             <input id="pdf" type="file" name="pdf" accept=".pdf,application/pdf" required>
           </div>
 
+          {% if upload_requires_password %}
+          <label for="index-password">Index password</label>
+          <input id="index-password" type="password" name="index_password" required autocomplete="current-password">
+          {% endif %}
+
           <button class="btn btn-primary" type="submit" id="upload-submit">
             <span class="upload-spinner" aria-hidden="true"></span>
             <span class="btn-label">Index rulebook</span>
@@ -82,7 +87,7 @@
               <p class="game-filter-meta" id="game-filter-meta" aria-live="polite"></p>
               <select id="chat-game" name="game_name" required aria-label="Choose game (list filters with search above)">
                 {% for g in games %}
-                <option value="{{ g.display_name }}" data-thumb="{{ url_for('game_thumb', filename=g.thumbnail) if g.thumbnail else '' }}">{{ g.display_name }}</option>
+                <option value="{{ g.display_name }}" data-thumb="{{ url_for('game_thumb', filename=g.thumbnail) if g.thumbnail else '' }}"{% if g.display_name == selected_game %} selected{% endif %}>{{ g.display_name }}</option>
                 {% endfor %}
               </select>
             </div>

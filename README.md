@@ -4,6 +4,17 @@ A local tool for asking natural-language questions about board game rulebooks yo
 
 ---
 
+## Contents
+
+| | |
+|--|--|
+| **Run** | [Python setup](#setup) · [Docker](#docker) · [VPS, domain, HTTPS](#hosting-vps-custom-domain-https) |
+| **Concepts** | [RAG?](#is-this-rag) · [Chroma](#how-chroma-works-in-this-project) · [Embeddings](#what-sentence-transformer-embeddings-are-doing) · [Tokens & disk](#tokens-disk-space-and-not-sending-the-whole-pdf) |
+| **Pipeline** | [End-to-end](#how-it-works-end-to-end) · [Architecture diagram](#architecture-data-flow) |
+| **Reference** | [Repo layout](#repository-layout-important-paths) · [Troubleshooting](#troubleshooting) |
+
+---
+
 ## Is this RAG?
 
 **Yes.** In the usual sense:
@@ -218,6 +229,12 @@ Optional for Flask sessions in non-local deployments:
 FLASK_SECRET_KEY=long_random_string
 ```
 
+Optional: when set, **upload / index rulebook** requires matching **Index password** (form field); omit for unrestricted uploads (local dev only).
+
+```env
+INDEX_PASSWORD=your_secret
+```
+
 ### Ingest a rulebook (CLI)
 
 ```bash
@@ -240,6 +257,109 @@ Upload limits on Flask: **25 MB** per request (see `flask_app.py`).
 
 ---
 
+## Docker
+
+The app runs in a container with **Gunicorn** (production-style WSGI). Data (Chroma, registry, thumbnails) lives in a **named volume** so it survives restarts.
+
+### Development stack (app on port 5000)
+
+From the repo root (with `.env` containing at least `GEMINI_API_KEY`):
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:5000` (or set `HOST_PORT` in the environment to map a different host port).
+
+Docker Compose reads `.env` for variable substitution. Set `FLASK_SECRET_KEY` to a long random string for production-like sessions; if it is unset or empty, the image falls back to a dev default (not suitable for a public server).
+
+### What the image does
+
+- **Base:** `python:3.11-slim-bookworm`
+- **`PYTHONPATH=/app/src`**, Gunicorn target **`flask_app:app`**
+- **Workers:** 1 worker, 4 threads (embedding model loads once per worker; more workers duplicate RAM use)
+- **Timeout:** 180s (first embedding download + slow Gemini calls)
+- **Telemetry:** `CHROMA_TELEMETRY_IMPL` / `ANONYMIZED_TELEMETRY` set to reduce Chroma noise
+
+First queries may be slow while **`sentence-transformers`** downloads model weights; optional improvement is to mount a cache directory for `HF_HOME` / `TRANSFORMERS_CACHE`.
+
+### Files
+
+| File | Role |
+|------|------|
+| `Dockerfile` | Image build |
+| `.dockerignore` | Keeps build context small; excludes `venv`, local `data/`, `.env` |
+| `docker-compose.yml` | Local/dev: publishes `web` on host port |
+
+---
+
+## Hosting (VPS, custom domain, HTTPS)
+
+This repo includes **Caddy** as a reverse proxy: **Let’s Encrypt** TLS on **443**, HTTP on **80**, and the Flask app only reachable on the Docker network (not directly on the public internet).
+
+### What you need before going live
+
+Have all of the following ready (write them down or store secrets in a password manager):
+
+| Item | Why |
+|------|-----|
+| **VPS** | A VM with a **public IPv4** (and optionally **IPv6**) that you control. You need **SSH access** (key-based login recommended). |
+| **DNS** | At your **registrar** (or DNS host), ability to create records for **`boardgamerulez.com`**. Typically an **A** record pointing the **apex** (`@`) to the VPS IPv4, and either an **A** for **`www`** or a **CNAME** from `www` to the apex. Add **AAAA** records if you use IPv6 and want Caddy to obtain certs for v6 clients. |
+| **Open ports** | From the internet, **TCP 80** and **443** must reach the VPS (for HTTPS issuance and traffic). Nothing else is required for this stack. |
+| **`GEMINI_API_KEY`** | From [Google AI Studio](https://aistudio.google.com/) (or your Google Cloud AI setup). Required for answers. |
+| **`FLASK_SECRET_KEY`** | A long random string (e.g. `openssl rand -hex 32`). **Required for a public site** so session cookies cannot be forged. |
+| **`INDEX_PASSWORD`** | Optional. If set, the **Index rulebook** upload form requires this password (set the same var in Docker `.env`). |
+| **Hostname match** | The names in **`infra/Caddyfile`** must match DNS (default: `boardgamerulez.com` and `www.boardgamerulez.com`). Change the file if you use a staging subdomain or different apex. |
+| **RAM / disk** | Rough guide: **2 GB RAM minimum** for comfortable CPU inference with PyTorch + Chroma; more helps. Disk grows with indexed PDFs and the Chroma DB. |
+| **Git or deploy bundle** | A way to get this repo onto the server (`git clone`, or CI rsync/scp). |
+
+You do **not** need a separate “SSL email” for the default **HTTP-01** challenge: Caddy obtains certificates automatically once DNS points here and port 80 is reachable.
+
+### DNS quick reference
+
+1. **A** `boardgamerulez.com` → `<your VPS IPv4>`
+2. **A** `www.boardgamerulez.com` → same IP, **or** **CNAME** `www` → `boardgamerulez.com` (some providers use a flattened CNAME for apex; follow their docs)
+3. Wait for propagation (minutes to hours). Check with `dig boardgamerulez.com +short` from your laptop.
+
+### On the VPS
+
+1. Install [Docker Engine](https://docs.docker.com/engine/install/) and the [Compose plugin](https://docs.docker.com/compose/install/linux/).
+2. Allow HTTP/HTTPS through the firewall, e.g. `ufw allow 80,443/tcp` (and `ufw enable` if you use UFW).
+3. Clone the repo and create **`.env`** in the project root:
+
+   ```env
+   GEMINI_API_KEY=your_key_here
+   FLASK_SECRET_KEY=long_random_secret_use_openssl_rand_hex_32
+   INDEX_PASSWORD=secret_for_indexing_rulebooks
+   ```
+
+4. Start the **VPS** stack (Caddy + app):
+
+   ```bash
+   docker compose -f docker-compose.vps.yml up -d --build
+   ```
+
+5. Visit `https://boardgamerulez.com`. If the certificate is not ready yet, check `docker compose -f docker-compose.vps.yml logs caddy` for ACME errors (usually DNS or port 80 blocked).
+
+### VPS compose vs local compose
+
+| File | Use |
+|------|-----|
+| `docker-compose.yml` | Development: **`web`** published on **`HOST_PORT`** (default **5000**). |
+| `docker-compose.vps.yml` | Production: **`web`** has no public port; **`caddy`** publishes **80** and **443**. |
+
+Both use the same **`board_rulez_data`** volume name so data lines up if the project directory (and Compose project name) is the same.
+
+### Changing the domain
+
+Edit **`infra/Caddyfile`** so the first line lists your real hostnames, then redeploy:
+
+```bash
+docker compose -f docker-compose.vps.yml up -d
+```
+
+---
+
 ## Repository layout (important paths)
 
 | Path | Purpose |
@@ -255,6 +375,10 @@ Upload limits on Flask: **25 MB** per request (see `flask_app.py`).
 | `data/ingestion_registry.json` | Ingested games + hashes (gitignored) |
 | `data/game_thumbnails/` | First-page JPEG covers for the Flask UI (gitignored) |
 | `data/raw_pdfs/` | Optional local PDF stash (gitignored in this repo) |
+| `Dockerfile` | Container image for the Flask app |
+| `docker-compose.yml` | Dev: expose app port to host |
+| `docker-compose.vps.yml` | VPS: app + Caddy (HTTPS) |
+| `infra/Caddyfile` | Reverse proxy hostnames and TLS (edit for your domain) |
 
 ---
 
@@ -263,6 +387,9 @@ Upload limits on Flask: **25 MB** per request (see `flask_app.py`).
 - **Empty game list** — Ingest at least one PDF, or ensure Chroma contains data and let the app backfill the registry from metadata.
 - **Generic or missing rule details** — RAG quality depends on chunks and retrieval; the dual-query merge is meant to surface cost lines; very large or oddly formatted PDFs may still split tables badly.
 - **Chroma / PostHog telemetry noise** — `posthog` is pinned in `requirements.txt` to reduce a known telemetry quirk; telemetry is also disabled via env in the apps.
+- **Flask “no secret key” / sessions** — Ensure `FLASK_SECRET_KEY` is non-empty in `.env` on a public deployment; empty values are treated as unset and a dev default is used (fine locally, not for the internet).
+- **HTTPS or Caddy fails** — Confirm DNS for every name in `infra/Caddyfile` points to this server, ports **80** and **443** are open, and read **`docker compose -f docker-compose.vps.yml logs caddy`**.
+- **First Docker request very slow** — Sentence-transformer model download; consider persisting `HF_HOME` or `TRANSFORMERS_CACHE` in a volume.
 
 ---
 

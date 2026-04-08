@@ -1,0 +1,32 @@
+# VPS + TLS: only 80/443 on the host; app stays on the Docker network.
+# Run: docker compose -f docker-compose.vps.yml up -d --build
+services:
+  web:
+    build: .
+    expose:
+      - "5000"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?set GEMINI_API_KEY in .env or the environment}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
+      INDEX_PASSWORD: ${INDEX_PASSWORD}
+    volumes:
+      - board_rulez_data:/app/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  board_rulez_data:
+  caddy_data:
+  caddy_config:
