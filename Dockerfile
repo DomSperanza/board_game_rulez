@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM python:3.11-slim-bookworm
 
 WORKDIR /app
@@ -10,7 +11,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     ANONYMIZED_TELEMETRY=False
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+# Layer cache: unchanged requirements.txt skips reinstall. BuildKit cache speeds pip when it does run.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt gunicorn
 
 COPY src/ ./src/
 
