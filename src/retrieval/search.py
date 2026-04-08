@@ -12,6 +12,9 @@ import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
+from ingestion.rag_config import params_for_complexity
+from ingestion.registry import get_game_complexity
+
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "chroma_db")
 
 # Second pass steers toward "building costs" / Requires: lines that pure semantic search often misses.
@@ -43,8 +46,10 @@ def _merge_results(
     return out
 
 
-def search_rulebook(query: str, game_name: str, top_k: int = 10) -> list[str]:
+def search_rulebook(query: str, game_name: str, top_k: int | None = None) -> list[str]:
     """Retrieves merged vector hits so building-cost sections are not ranked out."""
+    if top_k is None:
+        top_k = params_for_complexity(get_game_complexity(game_name))["top_k"]
     client = chromadb.PersistentClient(path=DB_PATH, settings=Settings(anonymized_telemetry=False))
     sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name="all-MiniLM-L6-v2"

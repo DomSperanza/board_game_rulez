@@ -21,13 +21,29 @@ def main():
     parser = argparse.ArgumentParser(description="Ingest PDF rulebooks into Board Game Rulez database.")
     parser.add_argument("--pdf", required=True, help="Path to the PDF file.")
     parser.add_argument("--game", required=True, help="Name of the board game.")
+    parser.add_argument(
+        "--complexity",
+        type=int,
+        default=5,
+        help="1=simple rulebook … 10=dense (smaller chunks, more context at query time).",
+    )
+    parser.add_argument(
+        "--ocr",
+        action="store_true",
+        help="OCR embedded images plus full-page OCR when a page has almost no text.",
+    )
 
     args = parser.parse_args()
 
     sync_from_chroma_if_registry_empty()
 
     print(f"Reading {args.pdf}...")
-    ok, msg = ingest_pdf_file(args.pdf, args.game)
+    ok, msg = ingest_pdf_file(
+        args.pdf,
+        args.game,
+        complexity=args.complexity,
+        ocr_sparse_pages=args.ocr,
+    )
     if ok:
         print(msg)
         return

@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1
 FROM python:3.11-slim-bookworm
 
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -10,10 +13,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CHROMA_TELEMETRY_IMPL=None \
     ANONYMIZED_TELEMETRY=False
 
-COPY requirements.txt .
-# Layer cache: unchanged requirements.txt skips reinstall. BuildKit cache speeds pip when it does run.
+COPY requirements-core.txt .
+# CPU-only PyTorch first (smaller than default wheels) → less to export into the image.
+# Layer cache: unchanged requirements-core.txt skips reinstall; BuildKit cache speeds pip.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt gunicorn
+    pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.1,<3" && \
+    pip install -r requirements-core.txt gunicorn
 
 COPY src/ ./src/
 

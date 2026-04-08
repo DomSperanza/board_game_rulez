@@ -34,6 +34,7 @@ from flask import (
 load_dotenv(_SRC.parent / ".env")
 load_dotenv()
 
+from chat_markdown import chat_html_from_markdown
 from generation.gemini_client import get_answer
 from ingestion.pipeline import delete_game_completely, ingest_uploaded_pdf
 from ingestion.registry import list_library_games, sync_from_chroma_if_registry_empty
@@ -45,6 +46,11 @@ app = Flask(
     static_folder=str(_SRC / "static"),
 )
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "dev-change-me-in-production"
+
+
+@app.template_filter("chat_md")
+def _chat_md_filter(s: str | None):
+    return chat_html_from_markdown(s or "")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
 
@@ -111,7 +117,15 @@ def upload():
         return redirect(url_for("index"))
     game = request.form.get("game_name", "")
     file = request.files.get("pdf")
-    ok, msg = ingest_uploaded_pdf(file, game)
+    try:
+        complexity = int(request.form.get("complexity") or 5)
+    except ValueError:
+        complexity = 5
+    complexity = max(1, min(10, complexity))
+    ocr_sparse = request.form.get("ocr_sparse") == "1"
+    ok, msg = ingest_uploaded_pdf(
+        file, game, complexity=complexity, ocr_sparse_pages=ocr_sparse
+    )
     flash(msg, "success" if ok else "error")
     if ok and game.strip():
         names = [g["display_name"] for g in _games()]

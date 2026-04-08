@@ -13,7 +13,11 @@ from chromadb.utils import embedding_functions
 # Path to local chroma DB
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "chroma_db")
 
-def create_embeddings_and_store(chunks: list[str], game_name: str):
+def create_embeddings_and_store(
+    chunks: list[str],
+    game_name: str,
+    complexity: int | None = None,
+):
     """Embeds textual chunks and stores them in ChromaDB."""
     if not chunks:
         print("No chunks provided to embed.")
@@ -42,7 +46,10 @@ def create_embeddings_and_store(chunks: list[str], game_name: str):
         chunk_id = f"{game_name}_chunk_{i}"
         ids.append(chunk_id)
         documents.append(chunk)
-        metadatas.append({"game_name": game_name})
+        meta = {"game_name": game_name}
+        if complexity is not None:
+            meta["complexity"] = int(complexity)
+        metadatas.append(meta)
         
     print(f"Adding {len(chunks)} chunks to ChromaDB for game '{game_name}'...")
     collection.add(

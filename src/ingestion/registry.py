@@ -63,13 +63,16 @@ def register(
     pdf_sha256: str,
     source_filename: str,
     thumbnail: str | None = None,
+    complexity: int = 5,
 ) -> None:
     name = " ".join(display_name.strip().split())
+    c = max(1, min(10, int(complexity)))
     data = _load()
     entry = {
         "display_name": name,
         "sha256": pdf_sha256,
         "source_filename": source_filename,
+        "complexity": c,
     }
     if thumbnail:
         entry["thumbnail"] = thumbnail
@@ -96,6 +99,19 @@ def pop_game(display_name: str) -> dict | None:
 def list_registered_games() -> list[str]:
     data = _load()
     return sorted(m["display_name"] for m in data["games"].values())
+
+
+def get_game_complexity(display_name: str) -> int:
+    name = " ".join(display_name.strip().split())
+    entry = _load()["games"].get(_game_key(name))
+    if not entry:
+        return 5
+    c = entry.get("complexity", 5)
+    try:
+        c = int(c)
+    except (TypeError, ValueError):
+        return 5
+    return max(1, min(10, c))
 
 
 def list_library_games() -> list[dict]:
@@ -125,6 +141,7 @@ def sync_from_chroma_if_registry_empty() -> None:
             "display_name": n,
             "sha256": "",
             "source_filename": "(existing database)",
+            "complexity": 5,
         }
     _save(data)
 

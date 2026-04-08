@@ -38,6 +38,15 @@
             <input id="pdf" type="file" name="pdf" accept=".pdf,application/pdf" required>
           </div>
 
+          <label for="complexity" class="complexity-label">Rulebook complexity <span id="complexity-val" class="complexity-val">5</span>/10</label>
+          <p class="library-hint" id="complexity-hint">Higher = smaller index chunks and more passages sent to the model (better for heavy games; slower indexing).</p>
+          <input type="range" id="complexity" name="complexity" min="1" max="10" value="5" step="1" aria-valuemin="1" aria-valuemax="10" aria-valuenow="5" aria-describedby="complexity-hint">
+
+          <label class="checkbox-row">
+            <input type="checkbox" name="ocr_sparse" value="1">
+            <span>OCR embedded images (figures/diagrams) and sparse scanned pages (slower)</span>
+          </label>
+
           {% if upload_requires_password %}
           <label for="index-password">Index password</label>
           <input id="index-password" type="password" name="index_password" required autocomplete="current-password">
@@ -127,7 +136,7 @@
                   <span class="who">Rulebot</span>
                   {% endif %}
                 </div>
-                <div class="bubble-body">{{ m.content }}</div>
+                <div class="bubble-body{% if m.role != 'user' %} markdown-body{% endif %}">{% if m.role != 'user' %}{{ m.content | chat_md }}{% else %}{{ m.content }}{% endif %}</div>
               </div>
               {% endfor %}
             </div>
@@ -180,6 +189,16 @@
         b.innerHTML = '<div class="bubble-header">' + SVG_BOT + '<span class="who">Rulebot</span></div><div class="bubble-body"><span class="thinking-pulse">Searching the rulebook and drafting an answer…</span></div>';
         log.appendChild(b);
         log.scrollTop = log.scrollHeight;
+      }
+      var complexityInput = document.getElementById("complexity");
+      var complexityVal = document.getElementById("complexity-val");
+      if (complexityInput && complexityVal) {
+        function syncComplexity() {
+          complexityVal.textContent = complexityInput.value;
+          complexityInput.setAttribute("aria-valuenow", complexityInput.value);
+        }
+        complexityInput.addEventListener("input", syncComplexity);
+        syncComplexity();
       }
       var uploadForm = document.getElementById("upload-form");
       if (uploadForm) {
