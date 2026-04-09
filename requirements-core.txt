@@ -8,6 +8,7 @@ Pillow>=10.4.0
 
 # Vector Database & Embeddings
 chromadb==0.5.21  # Local vector database (stores embeddings free/locally)
+rank-bm25>=0.2.2  # Lexical retrieval fused with vector search
 posthog==4.8.0  # Pin: Chroma telemetry breaks with newer posthog (#4997)
 sentence-transformers==3.3.1  # Runs open-source embedding models locally
 
